@@ -39,7 +39,7 @@ public class TextGenerationRequestsQueue
     {
         _isMessageIsComputing = true;
 
-        string resultMessage = apiRequest.FormattedInput;
+        string resultMessage = apiRequest.Input;
 
         if (!string.IsNullOrEmpty(resultMessage))
         {
@@ -51,7 +51,7 @@ public class TextGenerationRequestsQueue
             
             history.AddPromt(resultMessage);
 
-            var result = await _requestHandler.Send(new RequestData(apiRequest.FormattedInput, username, apiRequest.AiCharacterData, history));
+            var result = await _requestHandler.Send(new RequestData(apiRequest.Input, username, apiRequest.AiCharacterData, history));
 
             if (!string.IsNullOrEmpty(result))
             {
@@ -68,7 +68,7 @@ public class TextGenerationRequestsQueue
         }
         else
         {
-            apiRequest.OnRequestCompleted(apiRequest.FormattedInput);
+            apiRequest.OnRequestCompleted(apiRequest.Input);
             OnComputingComplete();
         }
     }

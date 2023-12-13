@@ -7,14 +7,14 @@ public class TextGenerationApiRequest
 {
     public DataBaseRecord Record { get; }
     public AiCharacterData AiCharacterData { get; }
-    public string FormattedInput { get; }
+    public string Input { get; }
 
     public event Action<DataBaseRecord, string> OnComplete;
 
-    public TextGenerationApiRequest(DataBaseRecord record, AiCharacterData characterData, string formattedInput, Action<DataBaseRecord, string> onComplete)
+    public TextGenerationApiRequest(DataBaseRecord record, AiCharacterData characterData, string input, Action<DataBaseRecord, string> onComplete)
     {
         Record = record;
-        FormattedInput = formattedInput;
+        Input = input;
         AiCharacterData = characterData;
 
         OnComplete = onComplete;
