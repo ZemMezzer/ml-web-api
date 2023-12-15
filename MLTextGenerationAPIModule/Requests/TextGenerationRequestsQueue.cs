@@ -1,4 +1,5 @@
 ﻿using MLApiCore;
+using MLApiCore.Data;
 using MLDbModule;
 using MLTextGenerationAPIModule.Data;
 
@@ -38,25 +39,22 @@ public class TextGenerationRequestsQueue
     private async void ComputeRequestInternal(TextGenerationApiRequest apiRequest)
     {
         _isMessageIsComputing = true;
-
-        string resultMessage = apiRequest.Input;
-
-        if (!string.IsNullOrEmpty(resultMessage))
+        
+        if (!string.IsNullOrEmpty(apiRequest.Promt))
         {
-            if (!apiRequest.Record.TryGet(DbRecordsDataKeywords.History, out History history))
-                history = new History(apiRequest.AiCharacterData.InnerMessage);
+            var history = apiRequest.History;
+            var username = apiRequest.Username;
+            var characterData = apiRequest.CharacterData;
+            var promt = apiRequest.Promt;
 
-            if (!apiRequest.Record.TryGet(DbRecordsDataKeywords.Name, out string username))
-                username = apiRequest.Record.Name;
-            
-            history.AddPromt(resultMessage);
+            history.AddPromt(promt);
 
-            var result = await _requestHandler.Send(new RequestData(apiRequest.Input, username, apiRequest.AiCharacterData, history));
+            var result = await _requestHandler.Send(new RequestData(promt, username, characterData, history));
 
             if (!string.IsNullOrEmpty(result))
             {
                 history.SetModelMessage(result);
-                apiRequest.OnRequestCompleted(result);
+                apiRequest.OnRequestCompleted(GenerationStatus.Success, result);
                 OnComputingComplete();
             }
             else
@@ -68,7 +66,7 @@ public class TextGenerationRequestsQueue
         }
         else
         {
-            apiRequest.OnRequestCompleted(apiRequest.Input);
+            apiRequest.OnRequestCompleted(GenerationStatus.EmptyPromt, string.Empty);
             OnComputingComplete();
         }
     }

@@ -1,27 +1,28 @@
-﻿using MLDbModule.Data;
+﻿using MLApiCore.Data;
 using MLTextGenerationAPIModule.Data;
 
 namespace MLTextGenerationAPIModule.Requests;
 
 public class TextGenerationApiRequest
 {
-    public DataBaseRecord Record { get; }
-    public AiCharacterData AiCharacterData { get; }
-    public string Input { get; }
+    public string Username { get; }
+    public AiCharacterData CharacterData { get; }
+    public string Promt { get; }
+    public History History { get; }
+    public event Action<GenerationStatus, string> OnComplete;
 
-    public event Action<DataBaseRecord, string> OnComplete;
-
-    public TextGenerationApiRequest(DataBaseRecord record, AiCharacterData characterData, string input, Action<DataBaseRecord, string> onComplete)
+    public TextGenerationApiRequest(string username, string promt, AiCharacterData characterData, History history, Action<GenerationStatus, string> onComplete)
     {
-        Record = record;
-        Input = input;
-        AiCharacterData = characterData;
-
+        Username = username;
+        CharacterData = characterData;
+        History = history;
+        Promt = promt;
+        
         OnComplete = onComplete;
     }
 
-    internal void OnRequestCompleted(string result)
+    internal void OnRequestCompleted(GenerationStatus status, string result)
     {
-        OnComplete?.Invoke(Record, result);
+        OnComplete?.Invoke(status, result);
     }
 }

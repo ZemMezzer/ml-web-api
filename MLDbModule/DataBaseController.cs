@@ -18,16 +18,19 @@ public class DataBaseController
         var collection = _database.GetCollection<DataBaseRecord>(table);
 
         if (TryGetRecord(table, record.Id, out DataBaseRecord? baseRecord))
+        {
             collection.ReplaceOne(new BsonDocument("_id", record.Id), record, new ReplaceOptions() { IsUpsert = true });
+            return;
+        }
         
         collection.InsertOne(record);
     }
 
     public bool TryGetRecord(string table, Guid id, out DataBaseRecord? record) => TryGetRecord(table, DbKeywords.Id, id, out record);
 
-    public bool TryGetRecordByName(string table, string name, out DataBaseRecord? record) => TryGetRecord(table, DbKeywords.Name, name, out record);
+    public bool TryGetRecordByName(string table, string? name, out DataBaseRecord? record) => TryGetRecord(table, DbKeywords.Name, name, out record);
 
-    public bool TryGetRecord(string table, string parameterName, object parameter, out DataBaseRecord? result)
+    public bool TryGetRecord(string table, string parameterName, object? parameter, out DataBaseRecord? result)
     {
         result = default;
         

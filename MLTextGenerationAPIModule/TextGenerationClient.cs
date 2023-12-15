@@ -23,60 +23,92 @@ public class TextGenerationClient : TextMlClientBase
         _requestsQueue = new TextGenerationRequestsQueue(textGenerationApiUrl);
     }
 
-    public override void Generate(Guid userId, Dictionary<string, string> input, Action<GenerationResult, Guid> onComplete)
+    public override async Task<GenerationResult> Generate(Guid userId, IReadOnlyDictionary<string, string?> input)
     {
+        Dictionary<string, string?> output = new Dictionary<string, string?>();
+        
         if (!input.TryGetValue(UserInput, out string? userInput) || string.IsNullOrEmpty(userInput))
         {
-            LogError($"User input is empty!", input);
+            LogError($"User input is empty!", output);
+            return new GenerationResult(GenerationStatus.UserInvalid, output, userId);
         }
         
-        if (!_dataBaseController.TryGetRecord(DbKeywords.Users, userId, out DataBaseRecord? record))
+        if (!_dataBaseController.TryGetRecord(DbKeywords.Users, userId, out DataBaseRecord? userRecord) || userRecord == null)
         {
-            LogError($"User with id {userId} was not found!", input);
-            
-            onComplete?.Invoke(GenerationResult.UserInvalid, userId);
-            return;
+            LogError($"User with id {userId} was not found!", output);
+            return new GenerationResult(GenerationStatus.UserInvalid, output, userId);
         }
         
         string? characterId = input.GetValueOrDefault(Character, DefaultCharacter);
 
-        if (!_dataBaseController.TryGetRecordByName(DbKeywords.Characters, characterId, out DataBaseRecord? characterRecord))
+        if (!_dataBaseController.TryGetRecordByName(DbKeywords.Characters, characterId, out DataBaseRecord? characterRecord) && characterRecord != null)
         {
-            LogError($"Character with id \"{characterId}\" was not found!", input);
-            
-            onComplete?.Invoke(GenerationResult.Failed, userId);
-            return;
+            LogError($"Character with id \"{characterId}\" was not found!", output);
+            return new GenerationResult(GenerationStatus.Failed, output, userId);
         }
-            
+
+        var username = GetUsername(userRecord, input);
+
+        if (string.IsNullOrEmpty(username))
+        {
+            LogError($"Username is invalid", output);
+            return new GenerationResult(GenerationStatus.UserInvalid, output, userId);
+        }
 
         if (!characterRecord.TryGet(DbRecordsDataKeywords.CharacterData, out AiCharacterData characterData))
         {
-            LogError($"Character data for character \"{characterId}\" was not found!", input);
-            
-            onComplete?.Invoke(GenerationResult.Failed, userId);
-            return;
+            LogError($"Character data for character \"{characterId}\" was not found!", output);
+            return new GenerationResult(GenerationStatus.Failed, output, userId);
         }
 
-        TextGenerationApiRequest request = new TextGenerationApiRequest(record, characterData, userInput, (_, result) =>
+        if (!userRecord.TryGet(DbRecordsDataKeywords.History, out History? history))
+            history = new History(characterData.InnerMessage);
+        
+        bool useHistory = false;
+
+        if (input.TryGetValue(ApiKeywords.UseHistory, out string? value) && !string.IsNullOrEmpty(value))
+            bool.TryParse(value, out useHistory);
+
+        var resultHistory = useHistory ? history : new History(characterData.InnerMessage);
+
+        bool isRequestComplete = false;
+        
+        TextGenerationApiRequest request = new TextGenerationApiRequest(username, userInput, characterData, resultHistory,(_, result) =>
         {
-            input.AppendStatus(GenerationResult.Success);
-            input.TryAdd("result", result);
-            onComplete?.Invoke(GenerationResult.Success, userId);
+            output.AppendStatus(GenerationStatus.Success);
+            output.TryAdd(ApiKeywords.TextGenerationResult, result);
+
+            if (useHistory)
+            {
+                userRecord.TryUpdate(DbRecordsDataKeywords.History, resultHistory);
+                _dataBaseController.UpsertRecord(DbKeywords.Users, userRecord);
+            }
+
+            isRequestComplete = true;
         });
         
         _requestsQueue.AddRequestInQueue(request);
+
+        while (!isRequestComplete)
+            await Task.Yield();
+
+        return new GenerationResult(GenerationStatus.Success, output, userId);
     }
 
-    public void UpdateHistoryForUser(Guid userId, string botMessage)
+    private string GetUsername(DataBaseRecord userRecord, IReadOnlyDictionary<string, string> input)
     {
-        if (!_dataBaseController.TryGetRecord(DbKeywords.Users, userId, out DataBaseRecord? record))
-        {
-            Console.WriteLine(new Exception($"Can't find user with id {userId}"));
-            return;
-        }
+        string username = userRecord.Name;
+
+        if (userRecord.TryGet("name", out string? customName) && !string.IsNullOrEmpty(customName))
+            username = customName;
+        
+        if (input.TryGetValue("name", out string? name) && !string.IsNullOrEmpty(name))
+            username = name;
+
+        return username;
     }
     
-    private void LogError(string message, Dictionary<string, string> input)
+    private void LogError(string? message, Dictionary<string, string?> input)
     {
         Console.WriteLine(new Exception(message));
         input.AppendError(message);

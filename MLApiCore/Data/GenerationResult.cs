@@ -1,9 +1,15 @@
 ﻿namespace MLApiCore.Data;
 
-public enum GenerationResult
+public readonly struct GenerationResult
 {
-    UserInvalid,
-    AccessDenied,
-    Success,
-    Failed,
+    public readonly GenerationStatus Status;
+    public readonly Dictionary<string, string?> Output;
+    public readonly Guid SenderId;
+
+    public GenerationResult(GenerationStatus status, Dictionary<string, string?> output, Guid senderId)
+    {
+        Status = status;
+        Output = output;
+        SenderId = senderId;
+    }
 }

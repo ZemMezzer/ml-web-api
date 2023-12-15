@@ -5,14 +5,14 @@ namespace MLTextGenerationAPIModule.Requests;
 
 public class RequestData
 {
-    public IReadOnlyDictionary<string, object> Data => _data;
-    private readonly Dictionary<string, object> _data;
+    public IReadOnlyDictionary<string, object?> Data => _data;
+    private readonly Dictionary<string, object?> _data;
 
-    public RequestData(string message, string userName, AiCharacterData data, History? history = null)
+    public RequestData(string message, string? userName, AiCharacterData data, History? history = null)
     {
-        History historyResult = history ?? new History();
+        History? historyResult = history ?? new History();
         
-        _data = new Dictionary<string, object>()
+        _data = new Dictionary<string, object?>()
         {
             { "user_input", message },
             { "max_new_tokens", 1000 },
