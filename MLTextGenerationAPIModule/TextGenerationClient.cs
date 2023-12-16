@@ -4,6 +4,7 @@ using MLDbModule;
 using MLDbModule.Data;
 using MLTextGenerationAPIModule.Data;
 using MLTextGenerationAPIModule.Requests;
+using Newtonsoft.Json;
 
 namespace MLTextGenerationAPIModule;
 
@@ -61,8 +62,32 @@ public class TextGenerationClient : TextMlClientBase
             return new GenerationResult(GenerationStatus.Failed, output, userId);
         }
 
-        if (!userRecord.TryGet(DbRecordsDataKeywords.History, out History? history))
+        if (input.TryGetValue(ApiKeywords.CharacterData, out string? rawCharacterData) && !string.IsNullOrEmpty(rawCharacterData))
+        {
+            try
+            {
+                characterData = JsonConvert.DeserializeObject<AiCharacterData>(rawCharacterData);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }
+
+        if (!userRecord.TryGet(GetModelHistoryKey(characterData), out History? history))
             history = new History(characterData.InnerMessage);
+
+        if (input.TryGetValue(ApiKeywords.History, out string? rawHistory) && !string.IsNullOrEmpty(rawHistory))
+        {
+            try
+            {
+                history = JsonConvert.DeserializeObject<History>(rawHistory);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }
         
         bool useHistory = false;
 
@@ -80,8 +105,9 @@ public class TextGenerationClient : TextMlClientBase
 
             if (useHistory)
             {
-                userRecord.TryUpdate(DbRecordsDataKeywords.History, resultHistory);
+                userRecord.TryUpdate(GetModelHistoryKey(characterData), resultHistory);
                 _dataBaseController.UpsertRecord(DbKeywords.Users, userRecord);
+                output.TryAdd(ApiKeywords.History, JsonConvert.SerializeObject(resultHistory));
             }
 
             isRequestComplete = true;
@@ -93,6 +119,11 @@ public class TextGenerationClient : TextMlClientBase
             await Task.Yield();
 
         return new GenerationResult(GenerationStatus.Success, output, userId);
+    }
+
+    private string GetModelHistoryKey(AiCharacterData characterData)
+    {
+        return $"{characterData.Name}_{DbRecordsDataKeywords.History}";
     }
 
     private string GetUsername(DataBaseRecord userRecord, IReadOnlyDictionary<string, string> input)

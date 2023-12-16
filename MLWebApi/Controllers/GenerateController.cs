@@ -4,6 +4,7 @@ using MLApiCore.Data;
 using MLDbModule;
 using MLDbModule.Data;
 using MLTextGenerationAPIModule;
+using MLWebApi.Commands;
 using Newtonsoft.Json;
 
 namespace MLWebApi.Controllers;
@@ -13,11 +14,13 @@ public class GenerateController : MlApiControllerBase
 {
     private readonly DataBaseController _dataBaseController;
     private readonly TextGenerationClient _textGenerationClient;
+    private readonly CommandsHandler _commandsHandler;
     
-    public GenerateController(DataBaseController dataBaseController, TextGenerationClient client)
+    public GenerateController(DataBaseController dataBaseController, TextGenerationClient client, CommandsHandler commandsHandler)
     {
         _dataBaseController = dataBaseController;
         _textGenerationClient = client;
+        _commandsHandler = commandsHandler;
     }
     
     
@@ -44,6 +47,38 @@ public class GenerateController : MlApiControllerBase
             Console.WriteLine(e);
             return string.Empty;
         }
+    }
+
+    [HttpPost("execute")]
+    public async Task<string> ExecuteCommand()
+    {
+        var requestString = await GetRequestString();
+        
+        var input = JsonConvert.DeserializeObject<Dictionary<string, string?>>(requestString);
+        
+        if(input == null)
+            return GetEmptyDictionaryWithStatus(GenerationStatus.InvalidRequest).ToJson();
+
+        if (!input.TryValidateAuth(_dataBaseController, out DataBaseRecord? userRecord) || userRecord == null)
+            return GetEmptyDictionaryWithStatusAndErrorMessage(GenerationStatus.AccessDenied,"Invalid Username Or Password!").ToJson();
+
+        if (!input.TryGetValue("command", out string? command) || string.IsNullOrEmpty(command))
+            return GetEmptyDictionaryWithStatus(GenerationStatus.InvalidRequest).ToJson();
+
+        Dictionary<string, string> output = new Dictionary<string, string>();
+
+        string commandParam = string.Empty;
+
+        if (input.TryGetValue("parameter", out string? param) && !string.IsNullOrEmpty(param))
+            commandParam = param;
+
+        if (_commandsHandler.TryExecuteCommand(userRecord, command, commandParam, out string result))
+        {
+            output.AppendStatus(GenerationStatus.Success);
+            output.Add("result", result);
+        }
+
+        return output.ToJson();
     }
 
     private async Task<GenerationResult> GetGenerationResult(DataBaseRecord userRecord, Dictionary<string, string?> input)

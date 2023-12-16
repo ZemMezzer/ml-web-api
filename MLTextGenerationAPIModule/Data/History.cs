@@ -9,13 +9,14 @@ public class History
     [JsonProperty("visible")] private List<List<string>> _visibleMessages;
 
     [JsonIgnore] public List<List<string>> Messages => _visibleMessages;
+    [JsonIgnore] private const string BeginVisibleChatMessage = "<|BEGIN-VISIBLE-CHAT|>";
 
     public History(string innerMessage = "")
     {
         _internalMessages = new List<List<string>>();
         _visibleMessages = new List<List<string>>();
 
-        _internalMessages.Add(new List<string>(){"<|BEGIN-VISIBLE-CHAT|>", innerMessage});
+        _internalMessages.Add(new List<string>(){BeginVisibleChatMessage, innerMessage});
         _visibleMessages.Add(new List<string>(){"", innerMessage});
     }
 
