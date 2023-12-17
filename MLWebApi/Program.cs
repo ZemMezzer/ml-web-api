@@ -12,10 +12,7 @@ namespace MLWebApi
             //TODO Config file
             DataBaseController dataBaseController = new DataBaseController("mongodb://localhost:27017", "Xeona");
             TextGenerationClient textGenerationClient = new TextGenerationClient(dataBaseController, "http://localhost:5000/api/v1/chat");
-
-            ICommand clearCommand = new ClearHistoryCommand(dataBaseController);
-            
-            CommandsHandler commandsHandler = new CommandsHandler(new List<ICommand>() {clearCommand});
+            CommandsHandler commandsHandler = InitializeCommands(dataBaseController);
             
             var builder = WebApplication.CreateBuilder(args);
             
@@ -29,6 +26,17 @@ namespace MLWebApi
             app.MapDefaultControllerRoute();
             
             app.Run("http://localhost:6666");
+        }
+
+        private static CommandsHandler InitializeCommands(DataBaseController dataBaseController)
+        {
+            ICommand clearCommand = new ClearHistoryCommand(dataBaseController);
+            ICommand getHistoryCommand = new GetHistoryCommand();
+
+            CommandsHandler commandsHandler =
+                new CommandsHandler(new List<ICommand>() { clearCommand, getHistoryCommand });
+
+            return commandsHandler;
         }
     }
 }

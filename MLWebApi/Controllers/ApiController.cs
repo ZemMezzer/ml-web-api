@@ -10,13 +10,13 @@ using Newtonsoft.Json;
 namespace MLWebApi.Controllers;
 
 [ApiController, Route("api/")]
-public class GenerateController : MlApiControllerBase
+public class ApiController : MlApiControllerBase
 {
     private readonly DataBaseController _dataBaseController;
     private readonly TextGenerationClient _textGenerationClient;
     private readonly CommandsHandler _commandsHandler;
     
-    public GenerateController(DataBaseController dataBaseController, TextGenerationClient client, CommandsHandler commandsHandler)
+    public ApiController(DataBaseController dataBaseController, TextGenerationClient client, CommandsHandler commandsHandler)
     {
         _dataBaseController = dataBaseController;
         _textGenerationClient = client;
